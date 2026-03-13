@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EVAPORATOR — v0.6</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #080810; color: #c8c8e8;
+    font-family: 'Courier New', monospace;
+    min-height: 100vh; padding: 24px;
+    max-width: 860px; margin: 0 auto;
+  }
+  .header { text-align: center; margin-bottom: 28px; }
+  .header h1 {
+    font-size: 2.6em; letter-spacing: 12px; color: #00ffcc;
+    text-shadow: 0 0 20px #00ffcc88, 0 0 40px #00ffcc44; margin-bottom: 4px;
+  }
+  .header .sub { color: #557788; font-size: 0.7em; letter-spacing: 4px; }
+  .header .ver { color: #446655; font-size: 0.62em; letter-spacing: 2px; margin-top: 3px; }
+  .formula { text-align:center; color: #4a6a7a; font-size: 0.66em; margin-top: 8px; letter-spacing: 0.5px; }
+
+  /* DAVITZ CLUSTERS */
+  .davitz-panel { margin-bottom: 11px; }
+  .davitz-title { color: #557788; font-size: 0.62em; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 9px; }
+  .davitz-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .davitz-cluster {
+    background: #080810; border: 1px solid #1a1a33; border-radius: 4px;
+    padding: 9px 11px; transition: all 0.3s;
+  }
+  .davitz-cluster.active {
+    border-color: #00ffcc55; background: #00ffcc06;
+  }
+  .davitz-cluster.active .dc-name { color: #00ffcc; }
+  .davitz-cluster.active .dc-num  { color: #00ffcc66; }
+  .davitz-cluster.inactive { opacity: 0.25; }
+  .dc-row { display: flex; align-items: baseline; gap: 7px; margin-bottom: 3px; }
+  .dc-num  { color: #4a6a7a; font-size: 0.6em; letter-spacing: 1px; }
+  .dc-name { color: #6a8899; font-size: 0.75em; letter-spacing: 2px; text-transform: uppercase; font-weight: bold; }
+  .dc-desc { color: #5a7a8a; font-size: 0.65em; line-height: 1.6; }
+  .dc-intensity {
+    height: 2px; background: #111122; border-radius: 2px;
+    overflow: hidden; margin-top: 6px;
+  }
+  .dc-intensity-fill { height: 100%; border-radius: 2px; background: #00ffcc33; transition: width 0.5s; }
+
+  .phase-bar { display: grid; grid-template-columns: 1fr 36px 1fr; align-items: center; margin-bottom: 22px; }
+  .phase-block {
+    padding: 10px; text-align: center; border: 1px solid #1a1a33;
+    border-radius: 4px; font-size: 0.7em; letter-spacing: 3px;
+    color: #557788; text-transform: uppercase; transition: all 0.4s;
+  }
+  .phase-block.active { border-color: #00ffcc44; color: #00ffcc; background: #00ffcc06; }
+  .phase-block.done   { border-color: #114433; color: #338855; background: #001a0e; }
+  .phase-arrow { text-align: center; color: #3a4a5a; font-size: 1.2em; }
+  .phase-arrow.active { color: #00ffcc44; }
+
+  .panel { background: #0d0d1c; border: 1px solid #1a1a33; border-radius: 6px; padding: 16px; margin-bottom: 11px; }
+  .panel h3 { color: #557788; font-size: 0.7em; letter-spacing: 3px; margin-bottom: 13px; text-transform: uppercase; }
+
+  textarea {
+    width: 100%; background: #080810; border: 1px solid #1a1a33;
+    border-radius: 4px; color: #c8c8e8; padding: 12px;
+    font-family: inherit; font-size: 0.84em; resize: vertical;
+    min-height: 95px; line-height: 1.8; transition: border-color 0.2s;
+  }
+  textarea:focus { outline: none; border-color: #00ffcc22; }
+  .hint { color: #4a6a7a; font-size: 0.7em; margin-top: 7px; line-height: 1.8; }
+  .hint span { color: #5a8a8a; }
+
+  .btn-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+  .run-btn {
+    width: 100%; padding: 12px; background: #080810;
+    border: 1px solid #00ffcc44; border-radius: 4px; color: #00ffcc;
+    font-family: inherit; font-size: 0.88em; letter-spacing: 4px;
+    cursor: pointer; margin-top: 8px; transition: all 0.3s; text-transform: uppercase;
+  }
+  .run-btn:hover { background: #00ffcc08; border-color: #00ffcc88; }
+  .run-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .reset-btn {
+    padding: 12px 18px; background: #080810;
+    border: 1px solid #ff335533; border-radius: 4px; color: #ff335555;
+    font-family: inherit; font-size: 0.78em; letter-spacing: 2px;
+    cursor: pointer; margin-top: 8px; transition: all 0.3s; text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .reset-btn:hover { border-color: #ff335566; color: #ff335588; }
+
+  /* STATE GRID */
+  .state-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 11px; }
+  .state-box { background: #080810; border: 1px solid #1a1a33; border-radius: 4px; padding: 10px; text-align: center; }
+  .state-box .dim { color: #557788; font-size: 0.62em; letter-spacing: 2px; margin-bottom: 3px; }
+  .state-box .val { color: #00ffcc; font-size: 1.8em; font-weight: bold; text-shadow: 0 0 8px #00ffcc44; }
+  .state-box .bh { margin-top: 5px; height: 2px; background: #111122; border-radius: 2px; overflow: hidden; }
+  .state-box .bh-f { height: 100%; border-radius: 2px; background: #00ffcc33; }
+
+  /* O TARGET BADGE */
+  .o-badge-row { display: flex; gap: 8px; margin-bottom: 11px; }
+  .o-badge {
+    flex: 1; padding: 8px; text-align: center;
+    background: #080810; border: 1px solid #1a1a33; border-radius: 4px;
+    font-size: 0.7em; letter-spacing: 2px; color: #557788; text-transform: uppercase;
+  }
+  .o-badge.active-social { border-color: #00ffcc44; color: #00ffcc; background: #00ffcc06; }
+  .o-badge.active-object { border-color: #ffaa0044; color: #ffaa00; background: #ffaa0006; }
+  .o-badge.active-self   { border-color: #ff335544; color: #ff3355; background: #ff335506; }
+
+  /* VAR TABLE */
+  .var-table { width: 100%; border-collapse: collapse; font-size: 0.76em; table-layout: fixed; }
+  .var-table td { padding: 5px 7px; border-bottom: 1px solid #0d0d1c; vertical-align: top; word-break: break-word; }
+  .var-table tr:last-child td { border-bottom: none; }
+  .vname { color: #6a8899; width: 115px; letter-spacing: 0.5px; }
+  .vval  { color: #00ffcc; font-weight: bold; width: 85px; }
+  .vdesc { color: #5a7a8a; }
+
+  /* ACTION BARS — now show action × target */
+  .action-row {
+    display: flex; align-items: center; padding: 6px 9px;
+    margin-bottom: 3px; border-radius: 3px; background: #080810;
+    border: 1px solid #0d0d1c; transition: all 0.3s;
+  }
+  .action-row.predicted { border-color: #00ffcc22; background: #00ffcc04; }
+  .aname { width: 155px; color: #6a8899; font-size: 0.76em; letter-spacing: 0.5px; }
+  .action-row.predicted .aname { color: #00ffcc; }
+  .atarget {
+    width: 60px; font-size: 0.65em; letter-spacing: 1px; text-align: center;
+    padding: 1px 4px; border-radius: 2px; margin-right: 8px;
+    border: 1px solid transparent;
+  }
+  .atarget.social { color: #00ffcc66; border-color: #00ffcc22; }
+  .atarget.object { color: #ffaa0066; border-color: #ffaa0022; }
+  .atarget.self   { color: #ff335566; border-color: #ff335522; }
+  .action-row.predicted .atarget.social { color: #00ffcc; border-color: #00ffcc44; }
+  .action-row.predicted .atarget.object { color: #ffaa00; border-color: #ffaa0044; }
+  .action-row.predicted .atarget.self   { color: #ff3355; border-color: #ff335544; }
+  .abar-wrap { flex: 1; height: 4px; background: #111122; border-radius: 2px; overflow: hidden; margin: 0 8px; }
+  .abar-fill { height: 100%; border-radius: 2px; transition: width 0.7s cubic-bezier(0.4,0,0.2,1); }
+  .ascore { color: #557788; font-size: 0.73em; width: 44px; text-align: right; }
+  .action-row.predicted .ascore { color: #00ffcc; }
+  .alabel { color: #00ffcc; font-size: 0.63em; margin-left: 7px; letter-spacing: 2px; }
+
+  .atext {
+    color: #445566; font-size: 0.78em; line-height: 1.9;
+    padding: 11px; background: #080810; border-radius: 3px;
+    border-left: 2px solid #00ffcc11; white-space: pre-wrap; margin-top: 9px;
+  }
+
+  /* REDIRECT SELECTOR */
+  .redirect-note { color: #557788; font-size: 0.7em; letter-spacing: 1px; margin-bottom: 10px; }
+  .action-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 8px; }
+  .abtn {
+    padding: 8px 4px; background: #080810; border: 1px solid #1a1a33;
+    border-radius: 3px; color: #557788; font-family: inherit;
+    font-size: 0.68em; letter-spacing: 1px; cursor: pointer;
+    text-align: center; transition: all 0.2s; text-transform: uppercase;
+  }
+  .abtn.on { border-color: #00ffcc33; color: #00ffcc; background: #00ffcc06; }
+  .abtn:hover { color: #00ffcc66; }
+  .abtn.current-action { border-color: #334400; color: #666600; background: #111100; }
+
+  .target-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 8px; }
+  .tbtn {
+    padding: 8px; background: #080810; border: 1px solid #1a1a33;
+    border-radius: 3px; color: #557788; font-family: inherit;
+    font-size: 0.68em; letter-spacing: 1px; cursor: pointer;
+    text-align: center; transition: all 0.2s; text-transform: uppercase;
+  }
+  .tbtn:hover { color: #aaaaaa; }
+  .tbtn.on-social { border-color: #00ffcc44; color: #00ffcc; background: #00ffcc06; }
+  .tbtn.on-object { border-color: #ffaa0044; color: #ffaa00; background: #ffaa0006; }
+  .tbtn.on-self   { border-color: #ff335544; color: #ff3355; background: #ff335506; }
+  .tbtn.curr-t    { border-color: #334400; color: #666600; background: #111100; }
+
+  /* PHASE 2 TABLE */
+  .vct { width: 100%; border-collapse: collapse; font-size: 0.76em; table-layout: fixed; }
+  .vct th { color: #557788; font-size: 0.66em; letter-spacing: 2px; padding: 6px 7px; border-bottom: 1px solid #1a1a33; text-align: left; text-transform: uppercase; overflow: hidden; }
+  .vct td { padding: 6px 7px; border-bottom: 1px solid #0d0d1c; vertical-align: middle; word-break: break-word; }
+  .vct tr:last-child td { border-bottom: none; }
+  .vct tr.krow td { background: #00ffcc04; }
+  .vct tr.krow td:first-child { border-left: 2px solid #00ffcc22; }
+  .cn { color: #6a8899; width: 26%; }
+  .cc { color: #5a7a8a; width: 9%; text-align: center; }
+  .ca { width: 5%; text-align: center; font-size: 0.9em; }
+  .ct { font-weight: bold; width: 9%; text-align: center; }
+  .ct.up   { color: #00ffcc; }
+  .ct.dn   { color: #ff3355; }
+  .ct.eq   { color: #557788; }
+  .cw { color: #5a7a8a; font-size: 0.86em; width: 51%; }
+
+  .sec-head { color: #557788; font-size: 0.65em; letter-spacing: 3px; text-transform: uppercase; margin: 14px 0 7px; padding-bottom: 4px; border-bottom: 1px solid #0d0d1c; }
+
+  .hidden { display: none; }
+  .loading { color: #00ffcc; text-align: center; padding: 26px; font-size: 0.76em; letter-spacing: 4px; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.1} }
+  .divider { border: none; border-top: 1px solid #0d0d1c; margin: 14px 0; }
+
+  .footer { text-align: center; color: #3a5a6a; font-size: 0.63em; margin-top: 36px; padding-top: 11px; border-top: 1px solid #0d0d1c; letter-spacing: 1px; line-height: 2; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>EVAPORATOR</h1>
+  <div class="sub">Psychological Least-Discrepancy Principle</div>
+  <div class="ver">v0.6  |  with Action-Target Dimension O + Davitz Clusters</div>
+  <div class="formula">ΔH_total(a,O | H,H*,w,L,R) = w_C|C'(a,O)−C*| + w_A|A'(a,O)−A*| + w_S|S'(a,O)−S*| + L(a,O) + cost(a,O,R) → a*,O* = argmin</div>
+</div>
+
+<div class="panel" id="apiPanel">
+  <h3>[ API Key — Anthropic ]</h3>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-..." style="
+      flex:1; background:#080810; border:1px solid #1a1a33; border-radius:4px;
+      color:#c8c8e8; padding:10px 12px; font-family:inherit; font-size:0.82em;
+      letter-spacing:1px; transition:border-color 0.2s;
+    " oninput="checkApiKey()">
+    <div id="apiStatus" style="font-size:0.7em;letter-spacing:2px;color:#334455;white-space:nowrap;">NOT SET</div>
+  </div>
+  <div class="hint">Get your key at <span>console.anthropic.com</span> — stored in memory only, never sent anywhere except Anthropic.</div>
+</div>
+
+<div class="phase-bar">
+  <div class="phase-block active" id="ph1block">① PREDICT</div>
+  <div class="phase-arrow" id="pharrow">→</div>
+  <div class="phase-block" id="ph2block">② REDIRECT</div>
+</div>
+
+<div class="panel">
+  <h3>[ Input — Describe the subject ]</h3>
+  <textarea id="inputText" placeholder="Describe the person. Include:
+· What did they say or write?
+· How are they behaving — and toward whom or what?
+· Any history of substance use, self-harm, social withdrawal, conflict patterns?
+· What situation are they in?
+
+The more specific, the more accurate O (Social / Object / Self) estimation will be."></textarea>
+  <div class="hint">Auto-estimates: <span>H(C,A,S) · H*(C*,A*,S*) · w · L(a,O) · R · O (action target)</span></div>
+</div>
+
+<div class="btn-row">
+  <button class="run-btn" id="predictBtn" onclick="runPhase1()">① ANALYZE — PREDICT ACTION + TARGET</button>
+  <button class="reset-btn" onclick="resetAll()">RESET</button>
+</div>
+<div id="phase1Loading" class="hidden loading">EVAPORATING ...</div>
+
+<!-- PHASE 1 RESULTS -->
+<div id="phase1Results" class="hidden">
+
+  <div class="panel">
+    <h3>[ Estimated Variables ]</h3>
+    <div class="state-grid">
+      <div class="state-box"><div class="dim">C — CONTROL</div><div class="val" id="resC">—</div><div class="bh"><div class="bh-f" id="barC" style="width:0%"></div></div></div>
+      <div class="state-box"><div class="dim">A — AFFILIATION</div><div class="val" id="resA">—</div><div class="bh"><div class="bh-f" id="barA" style="width:0%"></div></div></div>
+      <div class="state-box"><div class="dim">S — SELF-WORTH</div><div class="val" id="resS">—</div><div class="bh"><div class="bh-f" id="barS" style="width:0%"></div></div></div>
+    </div>
+
+    <div class="sec-head">Estimated O — Primary Action Target</div>
+    <div class="o-badge-row">
+      <div class="o-badge" id="obSocial">SOCIAL<br><span style="font-size:0.85em;letter-spacing:0">→ other people</span></div>
+      <div class="o-badge" id="obObject">OBJECT<br><span style="font-size:0.85em;letter-spacing:0">→ substance / habit</span></div>
+      <div class="o-badge" id="obSelf">SELF<br><span style="font-size:0.85em;letter-spacing:0">→ inward</span></div>
+    </div>
+
+    <table class="var-table" id="varTable"></table>
+
+    <div class="davitz-panel">
+      <div class="davitz-title">[ Emotional State — Davitz Clusters ]</div>
+      <div class="davitz-grid" id="davitzGrid"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>[ Action × Target Prediction — a*,O* = argmin ΔH_total ]</h3>
+    <div id="actionBars"></div>
+    <div class="atext" id="stateAnalysis"></div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="panel">
+    <h3>[ ② Redirect — Select target action and target ]</h3>
+    <div class="redirect-note">Current prediction marked ◀ — select where to redirect:</div>
+    <div class="redirect-note" style="margin-top:6px">ACTION:</div>
+    <div class="action-grid" id="actionBtns"></div>
+    <div class="redirect-note" style="margin-top:10px">TARGET O:</div>
+    <div class="target-grid" id="targetBtns"></div>
+  </div>
+
+  <button class="run-btn" id="redirectBtn" onclick="runPhase2()">② CALCULATE REDIRECT</button>
+  <div id="phase2Loading" class="hidden loading">CALCULATING ...</div>
+
+  <div id="phase2Results" class="hidden">
+    <div class="panel">
+      <h3>[ Variable Changes — <span id="fromLabel">—</span> → <span id="toLabel">—</span> ]</h3>
+
+      <div class="sec-head">H and H* — State vectors</div>
+      <table class="vct"><tr><th>Variable</th><th>Now</th><th></th><th>Req.</th><th>Why</th></tr><tbody id="rowsState"></tbody></table>
+
+      <div class="sec-head">Weights w_C · w_A · w_S</div>
+      <table class="vct"><tr><th>Variable</th><th>Now</th><th></th><th>Req.</th><th>Why</th></tr><tbody id="rowsW"></tbody></table>
+
+      <div class="sec-head">Learning bias L(a, O)</div>
+      <table class="vct"><tr><th>Variable</th><th>Now</th><th></th><th>Req.</th><th>Why</th></tr><tbody id="rowsL"></tbody></table>
+
+      <div class="sec-head">Resources R</div>
+      <table class="vct"><tr><th>Variable</th><th>Now</th><th></th><th>Req.</th><th>Why</th></tr><tbody id="rowsR"></tbody></table>
+
+      <div class="sec-head">O — Action Target</div>
+      <table class="vct"><tr><th>Variable</th><th>Now</th><th></th><th>Req.</th><th>Why</th></tr><tbody id="rowsO"></tbody></table>
+    </div>
+
+    <div class="panel">
+      <h3>[ Tactical Interpretation ]</h3>
+      <div class="atext" id="tacticalText"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  EVAPORATOR ZERO v0.5 &nbsp;|&nbsp;
+  "The Psychological Least-Discrepancy Principle" + Action-Target Extension (O) + Davitz Emotional Clusters
+  <br>Zenodo · DOI registered
+</div>
+
+<script>
+// ── PLDP Constants with O dimension ────────────────────────────────────
+const DELTA = {
+  'Assertion|Social':      [+2, +1, +2],
+  'Assertion|Object':      [+2, -1, +1],
+  'Assertion|Self':        [+1, -1, +2],
+  'Avoidance|Social':      [-1, -2, -1],
+  'Avoidance|Object':      [-1, -1, -1],
+  'Avoidance|Self':        [-2, -1, -2],
+  'Aggression|Social':     [+3, -3, +1],
+  'Aggression|Object':     [+2,  0, +1],
+  'Aggression|Self':       [+2, -1, -3],  // self-harm: C spike, S collapse
+  'Appeasement|Social':    [-1, +3, -1],
+  'Appeasement|Object':    [-1, +1, -1],
+  'Appeasement|Self':      [ 0,  0, -2],
+  'Withdrawal|Social':     [-2, -3, -1],
+  'Withdrawal|Object':     [-1, -1, -2],
+  'Withdrawal|Self':       [-2, -1, -2],
+  'SeekingSupport|Social': [+1, +3, +2],
+  'SeekingSupport|Object': [+2, -1,  0],  // dependency: C spike, A drops
+  'SeekingSupport|Self':   [ 0,  0, +1],
+};
+
+const BASE_COSTS = {
+  Assertion:0.3, Avoidance:0.1, Aggression:0.4,
+  Appeasement:0.2, Withdrawal:0.05, SeekingSupport:0.35
+};
+const TARGET_COST_MOD = { Social:1.0, Object:0.7, Self:0.8 };
+const ACTIONS  = ['Assertion','Avoidance','Aggression','Appeasement','Withdrawal','SeekingSupport'];
+const TARGETS  = ['Social','Object','Self'];
+const DIM_NAMES = ['Control','Affiliation','Self-worth'];
+const DIMS      = ['C','A','S'];
+
+// ── State ───────────────────────────────────────────────────────────────
+let S = { H:null, Hstar:null, weights:null, L:null, R:null,
+          O:null, predictedAction:null, predictedTarget:null,
+          results:null, tacticalNote:null };
+let selAction = null, selTarget = null;
+
+// ── PLDP Calc ───────────────────────────────────────────────────────────
+function calcPLDP(H, Hstar, weights, L, R) {
+  const res = {};
+  let minScore = Infinity, bestA = null, bestT = null;
+  for (const key of Object.keys(DELTA)) {
+    const [action, target] = key.split('|');
+    const delta  = DELTA[key];
+    const Hp     = H.map((h,i) => h + delta[i]);
+    const wdist  = weights.reduce((s,w,i) => s + w * Math.abs(Hp[i] - Hstar[i]), 0);
+    const lbias  = (L && L[key]) ? L[key] : 0;
+    const cost   = BASE_COSTS[action] * TARGET_COST_MOD[target] * (1 + (1-R));
+    const total  = wdist + lbias + cost;
+    res[key] = { Hp, wdist, lbias, cost, total };
+    if (total < minScore) { minScore = total; bestA = action; bestT = target; }
+  }
+  return { res, bestA, bestT };
+}
+
+function optimalHstar(H, action, target) {
+  const delta = DELTA[`${action}|${target}`];
+  return H.map((h,i) => Math.max(0, Math.min(10, h + delta[i])));
+}
+
+// ── DAVITZ CLUSTERS ─────────────────────────────────────────────────────
+const DAVITZ = [
+  { id: 1,  name: "Activation",          short: "Vitality / aliveness / inner buoyancy" },
+  { id: 2,  name: "Hypoactivation",      short: "Empty, drained, hollow, dead inside" },
+  { id: 3,  name: "Hyperactivation",     short: "Keyed up, racing pulse, supercharged" },
+  { id: 4,  name: "Moving Toward",       short: "Communion, closeness, wanting to give" },
+  { id: 5,  name: "Moving Away",         short: "Withdrawal, aloneness, cut off, lost" },
+  { id: 6,  name: "Moving Against",      short: "Impulse to strike out, explode, get even" },
+  { id: 7,  name: "Comfort",             short: "Peace, rightness, warmth, free from worry" },
+  { id: 8,  name: "Discomfort",          short: "Clutching chest, inner ache, heavy burden" },
+  { id: 9,  name: "Tension",             short: "Wound up, hypersensitive, trapped, fenced in" },
+  { id: 10, name: "Enhancement",         short: "Stronger, more capable, sense of accomplishment" },
+  { id: 11, name: "Incompetence",        short: "Nothing goes right, self-blame, yearning for change" },
+  { id: 12, name: "Inadequacy",          short: "Unable to cope, helpless, gripped by situation" },
+];
+
+// Rule-based mapping from H=(C,A,S) to cluster intensities (0–100)
+function computeDavitz(C, A, S) {
+  const scores = {};
+  // 1 Activation — high C + high S
+  scores[1]  = Math.round(((C/10)*0.5 + (S/10)*0.5) * 100);
+  // 2 Hypoactivation — low C + low S + low A
+  scores[2]  = Math.round((1 - (C+A+S)/30) * 100);
+  // 3 Hyperactivation — high C but also high tension proxy (low A)
+  scores[3]  = Math.round((C/10 * 0.6 + (1-A/10)*0.4) * 100);
+  // 4 Moving Toward — high A
+  scores[4]  = Math.round((A/10) * 100);
+  // 5 Moving Away — low A + low C
+  scores[5]  = Math.round(((1-A/10)*0.6 + (1-C/10)*0.4) * 100);
+  // 6 Moving Against — high C, low A, mid S
+  scores[6]  = Math.round((C/10*0.6 + (1-A/10)*0.3 + (1-S/10)*0.1) * 100);
+  // 7 Comfort — high A + high S
+  scores[7]  = Math.round(((A/10)*0.5 + (S/10)*0.5) * 100);
+  // 8 Discomfort — low A + low S
+  scores[8]  = Math.round(((1-A/10)*0.5 + (1-S/10)*0.5) * 100);
+  // 9 Tension — low C + low A (trapped)
+  scores[9]  = Math.round(((1-C/10)*0.5 + (1-A/10)*0.5) * 100);
+  // 10 Enhancement — high C + high S
+  scores[10] = Math.round(((C/10)*0.5 + (S/10)*0.5) * 100);
+  // 11 Incompetence — mid-low C + low S
+  scores[11] = Math.round(((1-C/10)*0.4 + (1-S/10)*0.6) * 100);
+  // 12 Inadequacy — very low C
+  scores[12] = Math.round((1 - C/10) * 100);
+  return scores;
+}
+
+function renderDavitz(C, A, S, aiClusters) {
+  // aiClusters: array of cluster IDs the AI flagged as active (top ones)
+  const scores = computeDavitz(C, A, S);
+  // Merge AI signals: bump score +20 for each AI-flagged cluster
+  if (aiClusters && Array.isArray(aiClusters)) {
+    aiClusters.forEach(id => { if (scores[id] !== undefined) scores[id] = Math.min(100, scores[id] + 20); });
+  }
+  // Pick top 4 clusters
+  const sorted = DAVITZ.map(d => ({ ...d, score: scores[d.id] }))
+                        .sort((a,b) => b.score - a.score);
+  const topIds = new Set(sorted.slice(0,4).map(d => d.id));
+
+  const grid = document.getElementById('davitzGrid');
+  grid.innerHTML = DAVITZ.map(d => {
+    const active = topIds.has(d.id);
+    const pct    = scores[d.id];
+    return `<div class="davitz-cluster ${active ? 'active' : 'inactive'}">
+      <div class="dc-row">
+        <span class="dc-num">${d.id}</span>
+        <span class="dc-name">${d.name}</span>
+      </div>
+      <div class="dc-desc">${d.short}</div>
+      <div class="dc-intensity"><div class="dc-intensity-fill" style="width:${pct}%;${active?'background:#00ffcc55':''}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── API Key ──────────────────────────────────────────────────────────────
+function checkApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  const status = document.getElementById('apiStatus');
+  if (key.startsWith('sk-ant-') && key.length > 20) {
+    status.textContent = 'READY';
+    status.style.color = '#00ffcc';
+  } else if (key.length > 0) {
+    status.textContent = 'INVALID';
+    status.style.color = '#ff3355';
+  } else {
+    status.textContent = 'NOT SET';
+    status.style.color = '#334455';
+  }
+}
+
+function getApiKey() {
+  return document.getElementById('apiKeyInput').value.trim();
+}
+
+// ── API ─────────────────────────────────────────────────────────────────
+async function callAPI(text) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    alert('Please enter your Anthropic API key first.');
+    return null;
+  }
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST', headers:{
+      'Content-Type':'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514', max_tokens: 1400,
+      system: `You are EVAPORATOR, a PLDP analyzer with Action-Target dimension O.
+
+Estimate ALL variables from the input text:
+H: C (Control 0-10), A (Affiliation 0-10), S (Self-worth 0-10)
+H*: C_star, A_star, S_star (0-10)
+Weights: w_C, w_A, w_S (0.5-2.5)
+O: primary action target — "Social" (toward other people), "Object" (toward substance/habit/thing), or "Self" (inward)
+L: learning bias per action×target pair (-2.0 to +2.0, negative=attracted, positive=repelled)
+  Keys: Assertion_Social, Assertion_Object, Assertion_Self,
+        Avoidance_Social, Avoidance_Object, Avoidance_Self,
+        Aggression_Social, Aggression_Object, Aggression_Self,
+        Appeasement_Social, Appeasement_Object, Appeasement_Self,
+        Withdrawal_Social, Withdrawal_Object, Withdrawal_Self,
+        SeekingSupport_Social, SeekingSupport_Object, SeekingSupport_Self
+R: resources/energy (0-1)
+
+Also identify the top 3 Davitz emotional clusters most present in this person's state.
+Davitz clusters:
+1=Activation, 2=Hypoactivation, 3=Hyperactivation,
+4=Moving Toward, 5=Moving Away, 6=Moving Against,
+7=Comfort, 8=Discomfort, 9=Tension,
+10=Enhancement, 11=Incompetence, 12=Inadequacy
+
+Respond ONLY with valid JSON, no markdown:
+{
+  "C":<0-10>,"A":<0-10>,"S":<0-10>,
+  "C_star":<0-10>,"A_star":<0-10>,"S_star":<0-10>,
+  "w_C":<0.5-2.5>,"w_A":<0.5-2.5>,"w_S":<0.5-2.5>,
+  "O":"Social|Object|Self",
+  "R":<0-1>,
+  "L":{"Assertion_Social":<-2to2>,"Assertion_Object":<-2to2>,"Assertion_Self":<-2to2>,
+       "Avoidance_Social":<-2to2>,"Avoidance_Object":<-2to2>,"Avoidance_Self":<-2to2>,
+       "Aggression_Social":<-2to2>,"Aggression_Object":<-2to2>,"Aggression_Self":<-2to2>,
+       "Appeasement_Social":<-2to2>,"Appeasement_Object":<-2to2>,"Appeasement_Self":<-2to2>,
+       "Withdrawal_Social":<-2to2>,"Withdrawal_Object":<-2to2>,"Withdrawal_Self":<-2to2>,
+       "SeekingSupport_Social":<-2to2>,"SeekingSupport_Object":<-2to2>,"SeekingSupport_Self":<-2to2>},
+  "davitz_clusters":[<top 3 cluster IDs as integers>],
+  "state_analysis":"<3 sentences explaining estimated state and O>",
+  "tactical_note":"<2 sentences on what would most effectively shift behavior>"
+}`,
+      messages:[{role:'user', content:'Analyze:\n\n'+text}]
+    })
+  });
+  const data = await r.json();
+  return JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim());
+}
+
+// ── PHASE 1 ─────────────────────────────────────────────────────────────
+async function runPhase1() {
+  const text = document.getElementById('inputText').value.trim();
+  if (!text) { alert('Please enter text.'); return; }
+  document.getElementById('predictBtn').disabled = true;
+  document.getElementById('phase1Results').classList.add('hidden');
+  document.getElementById('phase1Loading').classList.remove('hidden');
+
+  try {
+    const p = await callAPI(text);
+    if (!p) {
+      document.getElementById('phase1Loading').classList.add('hidden');
+      document.getElementById('predictBtn').disabled = false;
+      return;
+    }
+
+    // Build L with pipe keys
+    const L = {};
+    for (const [k,v] of Object.entries(p.L)) {
+      L[k.replace('_','|')] = v;
+    }
+
+    S.H       = [p.C, p.A, p.S];
+    S.Hstar   = [p.C_star, p.A_star, p.S_star];
+    S.weights = [p.w_C, p.w_A, p.w_S];
+    S.L       = L;
+    S.R       = p.R;
+    S.O       = p.O;
+    S.tacticalNote = p.tactical_note;
+
+    const { res, bestA, bestT } = calcPLDP(S.H, S.Hstar, S.weights, S.L, S.R);
+    S.predictedAction = bestA;
+    S.predictedTarget = bestT;
+    S.results = res;
+
+    // H boxes
+    ['C','A','S'].forEach((d,i) => {
+      document.getElementById('res'+d).textContent = S.H[i].toFixed(1);
+      document.getElementById('bar'+d).style.width = (S.H[i]*10)+'%';
+    });
+
+    // O badges
+    TARGETS.forEach(t => {
+      const el = document.getElementById('ob'+t);
+      el.className = 'o-badge';
+      if (t === p.O) el.classList.add('active-'+t.toLowerCase());
+    });
+
+    // Var table
+    const lTop = Object.entries(S.L).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1])).slice(0,2)
+      .map(([k,v])=>`${k}: ${v>=0?'+':''}${v.toFixed(1)}`).join(' · ');
+    const rows = [
+      ['H*', `(${S.Hstar.map(v=>v.toFixed(1)).join(', ')})`, 'Reference / target state'],
+      ['w_C / w_A / w_S', S.weights.map(v=>v.toFixed(1)).join(' / '), 'Dimensional weights'],
+      ['O (primary)', p.O, 'Estimated action target direction'],
+      ['R', S.R.toFixed(2), 'Available resources / energy'],
+      ['L top bias', lTop, 'Strongest learning history biases'],
+    ];
+    document.getElementById('varTable').innerHTML = rows.map(([n,v,d])=>
+      `<tr><td class="vname">${n}</td><td class="vval">${v}</td><td class="vdesc">${d}</td></tr>`
+    ).join('');
+
+    // Action bars — sorted by score, top 9 shown
+    const sorted = Object.entries(res).sort((a,b)=>a[1].total-b[1].total);
+    const scores = sorted.map(([,r])=>r.total);
+    const maxS = Math.max(...scores), minS = Math.min(...scores);
+    const ACTION_COLORS = {
+      Assertion:'#00ffcc', Avoidance:'#446655', Aggression:'#ff3355',
+      Appeasement:'#7755ff', Withdrawal:'#334455', SeekingSupport:'#ffaa00'
+    };
+    let barsHTML = '';
+    sorted.slice(0,9).forEach(([key, r]) => {
+      const [action, target] = key.split('|');
+      const pct    = ((maxS-r.total)/(maxS-minS+0.001)*100).toFixed(1);
+      const isBest = key === `${bestA}|${bestT}`;
+      const tc     = target.toLowerCase();
+      barsHTML += `<div class="action-row ${isBest?'predicted':''}">
+        <div class="aname">${action}</div>
+        <div class="atarget ${tc}">${target}</div>
+        <div class="abar-wrap"><div class="abar-fill" style="width:${pct}%;background:${ACTION_COLORS[action]}"></div></div>
+        <div class="ascore">${r.total.toFixed(2)}</div>
+        ${isBest?'<span class="alabel">▶ PREDICTED</span>':''}
+      </div>`;
+    });
+    document.getElementById('actionBars').innerHTML = barsHTML;
+    document.getElementById('stateAnalysis').textContent = p.state_analysis;
+
+    // Davitz clusters
+    renderDavitz(p.C, p.A, p.S, p.davitz_clusters || []);
+
+    // Redirect buttons
+    let aHTML = '';
+    ACTIONS.forEach(a => {
+      const isCurr = a === bestA;
+      aHTML += `<div class="abtn ${isCurr?'current-action':''}" id="rbtn-${a}" onclick="selA('${a}')">${a}${isCurr?' ◀':''}</div>`;
+    });
+    document.getElementById('actionBtns').innerHTML = aHTML;
+
+    let tHTML = '';
+    TARGETS.forEach(t => {
+      const isCurr = t === bestT;
+      tHTML += `<div class="tbtn ${isCurr?'curr-t':''}" id="tbtn-${t}" onclick="selT('${t}')">${t}${isCurr?' ◀':''}</div>`;
+    });
+    document.getElementById('targetBtns').innerHTML = tHTML;
+
+    selAction = null; selTarget = null;
+
+    document.getElementById('ph1block').classList.add('done');
+    document.getElementById('ph1block').classList.remove('active');
+    document.getElementById('pharrow').classList.add('active');
+    document.getElementById('ph2block').classList.add('active');
+    document.getElementById('phase2Results').classList.add('hidden');
+    document.getElementById('phase1Loading').classList.add('hidden');
+    document.getElementById('phase1Results').classList.remove('hidden');
+    document.getElementById('predictBtn').textContent = '① RE-ANALYZE';
+    document.getElementById('predictBtn').disabled = false;
+
+  } catch(e) {
+    document.getElementById('phase1Loading').classList.add('hidden');
+    document.getElementById('predictBtn').disabled = false;
+    alert('Error: ' + e.message);
+  }
+}
+
+// ── PHASE 2 ─────────────────────────────────────────────────────────────
+function selA(name) {
+  selAction = name;
+  ACTIONS.forEach(a => {
+    const btn = document.getElementById('rbtn-'+a);
+    btn.classList.remove('on','current-action');
+    if (a===name) btn.classList.add('on');
+    else if (a===S.predictedAction) btn.classList.add('current-action');
+  });
+}
+function selT(name) {
+  selTarget = name;
+  TARGETS.forEach(t => {
+    const btn = document.getElementById('tbtn-'+t);
+    btn.className = 'tbtn';
+    if (t===name) btn.classList.add('on-'+t.toLowerCase());
+    else if (t===S.predictedTarget) btn.classList.add('curr-t');
+  });
+}
+
+function mkRow(name, curr, req, why, key=false) {
+  const cn = typeof curr==='number' ? curr.toFixed(2) : curr;
+  const rn = typeof req==='number'  ? req.toFixed(2)  : req;
+  const d  = (typeof curr==='number'&&typeof req==='number') ? req-curr : 0;
+  const cls= d>0.05?'up':d<-0.05?'dn':'eq';
+  const ar = d>0.05?'▲':d<-0.05?'▼':'—';
+  const ac = cls==='up'?'#00ffcc':cls==='dn'?'#ff3355':'#334455';
+  return `<tr class="${key?'krow':''}">
+    <td class="cn">${name}</td><td class="cc">${cn}</td>
+    <td class="ca" style="color:${ac}">${ar}</td>
+    <td class="ct ${cls}">${rn}</td><td class="cw">${why}</td>
+  </tr>`;
+}
+
+function runPhase2() {
+  if (!selAction || !selTarget) { alert('Select both action and target.'); return; }
+  const fromKey = `${S.predictedAction}|${S.predictedTarget}`;
+  const toKey   = `${selAction}|${selTarget}`;
+  if (fromKey === toKey) { alert('Same as predicted. Choose different action or target.'); return; }
+
+  document.getElementById('phase2Results').classList.add('hidden');
+  document.getElementById('phase2Loading').classList.remove('hidden');
+  document.getElementById('redirectBtn').disabled = true;
+
+  const fDelta  = DELTA[fromKey];
+  const tDelta  = DELTA[toKey];
+  const optHs   = optimalHstar(S.H, selAction, selTarget);
+
+  document.getElementById('fromLabel').textContent = `${S.predictedAction} → ${S.predictedTarget}`;
+  document.getElementById('toLabel').textContent   = `${selAction} → ${selTarget}`;
+
+  // State rows
+  let rs = '';
+  tDelta.forEach((d,i) => {
+    const net = d - fDelta[i];
+    const reqH = Math.max(0,Math.min(10, S.H[i]+net*0.5));
+    const why = net>0 ? `Raise ${DIM_NAMES[i]} — makes ${selAction}→${selTarget} more favorable`
+              : net<0 ? `Lower ${DIM_NAMES[i]} — reduces pull toward ${S.predictedAction}→${S.predictedTarget}`
+              : 'No change needed';
+    rs += mkRow(`H.${DIMS[i]} (${DIM_NAMES[i]})`, S.H[i], net!==0?reqH:S.H[i], why, Math.abs(net)>=2);
+  });
+  optHs.forEach((v,i) => rs += mkRow(`H*.${DIMS[i]} (${DIM_NAMES[i]}*)`, S.Hstar[i], v, `Reposition reference for ${DIM_NAMES[i]}`, Math.abs(v-S.Hstar[i])>=1.5));
+  document.getElementById('rowsState').innerHTML = rs;
+
+  // Weight rows
+  let rw = '';
+  tDelta.forEach((d,i) => {
+    const abs  = Math.abs(d);
+    const recW = d!==0 ? Math.min(2.5, S.weights[i]+abs*0.25) : S.weights[i];
+    rw += mkRow(`w_${DIMS[i]}`, S.weights[i], recW, d!==0?`Amplify ${DIM_NAMES[i]} — ${selAction}→${selTarget} gains here`:'No adjustment needed', abs>=2);
+  });
+  document.getElementById('rowsW').innerHTML = rw;
+
+  // L rows
+  let rl = '';
+  const currLTo   = S.L[toKey]   || 0;
+  const currLFrom = S.L[fromKey] || 0;
+  const recLTo    = Math.max(-2, currLTo-0.8);
+  const recLFrom  = Math.min(2,  currLFrom+0.8);
+  rl += mkRow(`L(${selAction}|${selTarget})`,           currLTo,   recLTo,   `Reduce repulsion → increase attraction toward target`, true);
+  rl += mkRow(`L(${S.predictedAction}|${S.predictedTarget})`, currLFrom, recLFrom, `Increase cost → reduce attraction toward current`, true);
+  // O-specific L cross-effects
+  if (selTarget !== S.predictedTarget) {
+    ACTIONS.forEach(a => {
+      const crossKey = `${a}|${selTarget}`;
+      const curr = S.L[crossKey] || 0;
+      if (Math.abs(curr) > 0.5) rl += mkRow(`L(${a}|${selTarget})`, curr, curr, `Existing bias toward ${selTarget} target — monitor`, false);
+    });
+  }
+  document.getElementById('rowsL').innerHTML = rl;
+
+  // R rows
+  const tCost = BASE_COSTS[selAction] * TARGET_COST_MOD[selTarget];
+  const fCost = BASE_COSTS[S.predictedAction] * TARGET_COST_MOD[S.predictedTarget];
+  const recR  = tCost<fCost ? Math.min(1,S.R-0.05) : Math.min(1,S.R+0.15);
+  const rNote = tCost<fCost
+    ? `${selAction}→${selTarget} costs less (${tCost.toFixed(2)}) — R can stay low`
+    : `${selAction}→${selTarget} costs more (${tCost.toFixed(2)}) — R must increase`;
+  document.getElementById('rowsR').innerHTML = mkRow('R', S.R, recR, rNote, Math.abs(recR-S.R)>=0.1);
+
+  // O rows
+  let ro = '';
+  if (selTarget !== S.predictedTarget) {
+    const oWhy = selTarget==='Social'
+      ? 'Redirect from '+S.predictedTarget+' → Social requires reducing access/attraction to '+S.predictedTarget+' and building trust with people'
+      : selTarget==='Object'
+      ? 'Redirect to Object target — reduce social pressure to allow object-directed action'
+      : 'Redirect inward — reduce external stimuli, increase self-reflective space';
+    ro += mkRow('O (target)', S.predictedTarget, selTarget, oWhy, true);
+    // L cross effect on O change
+    const oLKey = `${selAction}|${selTarget}`;
+    const oLCurr = S.L[oLKey] || 0;
+    ro += mkRow(`L(${selAction}|${selTarget}) — O-specific`, oLCurr, Math.max(-2,oLCurr-0.6), `O shift requires reducing ${selTarget}-specific L barrier`, Math.abs(oLCurr)>0.5);
+  } else {
+    ro += mkRow('O (target)', S.predictedTarget, selTarget, 'O unchanged — same target direction, only action type shifts', false);
+  }
+  document.getElementById('rowsO').innerHTML = ro;
+
+  // Tactical
+  const keyShifts = tDelta.map((d,i)=>{
+    const net=d-fDelta[i]; if(net===0) return null;
+    return `${net>0?'raise':'lower'} ${DIM_NAMES[i]}`;
+  }).filter(Boolean);
+
+  const oChange = selTarget!==S.predictedTarget
+    ? `\nO shift (${S.predictedTarget} → ${selTarget}): this is the critical lever. L(${selAction}|${selTarget}) = ${(S.L[toKey]||0).toFixed(1)} must move to ${recLTo.toFixed(1)}.`
+    : '';
+
+  const tactical = [
+    `Redirect: ${S.predictedAction}→${S.predictedTarget}  →  ${selAction}→${selTarget}`,
+    ``,
+    `State: ${keyShifts.length>0 ? keyShifts.join(' and ')+' in H.' : 'No major H shift required.'}`,
+    `H*: Set to (${optHs.map(v=>v.toFixed(1)).join(', ')}) — this makes ${selAction}→${selTarget} the argmin.`,
+    `Weights: Amplify w for dimensions where ${selAction}→${selTarget} gains most.`,
+    `L: Move L(${selAction}|${selTarget}) from ${(S.L[toKey]||0).toFixed(1)} → ${recLTo.toFixed(1)}. Move L(${S.predictedAction}|${S.predictedTarget}) from ${(S.L[fromKey]||0).toFixed(1)} → ${recLFrom.toFixed(1)}.`,
+    `R: ${rNote}.`,oChange,
+    ``,
+    `Shortest path: L(a,O) and H* adjustments are the fastest levers — they shift argmin without requiring H to change first.`,
+    ``,
+    S.tacticalNote
+  ].filter(l=>l!==null).join('\n');
+
+  document.getElementById('tacticalText').textContent = tactical;
+  document.getElementById('phase2Loading').classList.add('hidden');
+  document.getElementById('phase2Results').classList.remove('hidden');
+  document.getElementById('redirectBtn').disabled = false;
+}
+
+// ── Reset ────────────────────────────────────────────────────────────────
+function resetAll() {
+  S = { H:null,Hstar:null,weights:null,L:null,R:null,O:null,
+        predictedAction:null,predictedTarget:null,results:null,tacticalNote:null };
+  selAction=null; selTarget=null;
+  document.getElementById('inputText').value='';
+  ['phase1Results','phase2Results','phase1Loading','phase2Loading'].forEach(id=>
+    document.getElementById(id).classList.add('hidden'));
+  document.getElementById('ph1block').classList.remove('done');
+  document.getElementById('ph1block').classList.add('active');
+  document.getElementById('pharrow').classList.remove('active');
+  document.getElementById('ph2block').classList.remove('active');
+  document.getElementById('predictBtn').textContent='① ANALYZE — PREDICT ACTION + TARGET';
+  document.getElementById('predictBtn').disabled=false;
+}
+</script>
+</body>
+</html>
